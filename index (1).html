@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Addictive Clicker — Bigger + More</title>
+<style>
+  :root{--bg:#0b1220;--panel:#101a33;--fg:#e6edf6;--muted:#9fb0c9;--a:#22d3ee;--b:#a78bfa;--c:#34d399;--warn:#ef4444}
+  html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 70% -10%,#10224b 0%,#0b1220 55%,#091226 100%);color:var(--fg);font:15px/1.35 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{display:grid;grid-template-columns:320px 1fr 380px;gap:14px;max-width:1400px;margin:14px auto;padding:0 14px;box-sizing:border-box}
+  .card{background:rgba(16,26,51,.95);border:1px solid rgba(148,163,184,.25);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.4);overflow:hidden}
+  .card>header{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.2);display:flex;align-items:center;gap:10px}
+  .title{font-weight:900}
+  .content{padding:12px}
+  .row{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap}
+  .stack{display:grid;gap:8px}
+  .pill{border:1px solid rgba(148,163,184,.35);border-radius:999px;padding:2px 8px;color:#cbd5e1;font-size:12px}
+  .btn{appearance:none;border:1px solid rgba(148,163,184,.35);background:#0f1b38;color:var(--fg);border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer}
+  .btn.primary{border-color:transparent;background:linear-gradient(180deg,var(--a),#0ea5e9);color:#05131a}
+  .btn.warn{border-color:transparent;background:linear-gradient(180deg,#fca5a5,#ef4444);color:#2a0606}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .bignum{font-size:36px;font-weight:900}
+  .midnum{font-size:22px;font-weight:800}
+  .hr{height:1px;background:rgba(148,163,184,.22);margin:8px 0}
+  .bar{height:10px;background:#0b132a;border-radius:999px;overflow:hidden;border:1px solid rgba(148,163,184,.25)}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--a),var(--b));width:0%}
+  .store-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid rgba(148,163,184,.18);border-radius:12px;background:#0f1b38;position:relative}
+  .lock{opacity:.55}
+  .lock::after{content:attr(data-lock);position:absolute;right:8px;top:8px;background:#0b142b;border:1px solid rgba(148,163,184,.25);padding:2px 6px;border-radius:8px;font-size:12px;color:#cbd5e1}
+  /* click area */
+  .clicker{display:grid;place-items:center;height:360px}
+  .click-btn{width:160px;height:160px;border-radius:999px;border:0;background:radial-gradient(circle at 30% 30%,#ffffff,#e0f2fe 60%,#93c5fd);box-shadow:0 0 0 6px rgba(34,211,238,.15),0 25px 40px rgba(2,132,199,.32);cursor:pointer;transition:transform .06s}
+  .click-btn:active{transform:scale(.96)}
+  input[type="text"],select{background:#0f1b38;color:#e2e8f0;border:1px solid rgba(148,163,184,.25);border-radius:8px;padding:6px 8px}
+  #log{height:240px;overflow:auto;color:#9fb0c9}
+  #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#0b132a;border:1px solid rgba(148,163,184,.35);padding:8px 12px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:5;color:#e2e8f0}
+  #toast.show{opacity:1}
+  @media (max-width: 1100px){.wrap{grid-template-columns:1fr}.right{order:3}}
+</style>
+</head>
+<body>
+<div id="toast">Saved</div>
+<div class="wrap">
+  <!-- LEFT: Profile & Progress -->
+  <section class="card">
+    <header><div class="title">Profile</div></header>
+    <div class="content stack">
+      <div class="row"><label style="width:72px">Name</label><input id="playerName" type="text" placeholder="enter name 'idontcheat' for cheats" maxlength="24" style="flex:1"><button id="btnSetName" class="btn">Set</button></div>
+      <div class="row"><span class="pill">Level <b id="statLevel">1</b></span><span class="pill">XP <b id="statXp">0</b></span></div>
+      <div class="bar"><i id="xpBar"></i></div>
+      <div class="row"><span class="pill">Rebirths <b id="statRebirths">0</b></span><span class="pill">Global Mult <b id="statMult">x1.00</b></span><span class="pill">CPS <b id="statCps">0</b></span></div>
+      <div id="cheatPanel" class="stack" style="display:none">
+        <div class="row"><b>Cheats</b><span class="pill">enabled</span></div>
+        <div class="row"><button class="btn" id="cheatCoins">+1e6 Coins</button><button class="btn" id="cheatUnlock">Unlock All</button><button class="btn" id="cheatGens">+100 of each Gen</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MIDDLE: Game Core -->
+  <section class="card">
+    <header>
+      <div class="title">Addictive Clicker</div>
+      <div style="margin-left:auto;color:#9fb0c9">No difficulties • Clear locks • Autosave</div>
+    </header>
+    <div class="content">
+      <div class="row" style="justify-content:space-between;align-items:end">
+        <div><div style="color:#9fb0c9">Coins</div><div class="bignum" id="coins">0</div></div>
+        <div><div style="color:#9fb0c9">Per Click</div><div class="midnum" id="perClick">1</div></div>
+        <div><div style="color:#9fb0c9">Per Second</div><div class="midnum" id="perSecond">0</div></div>
+      </div>
+    </div>
+    <div class="clicker"><button id="clickBtn" class="click-btn" aria-label="Click"><span style="font-weight:900;color:#0b1220">CLICK</span></button></div>
+    <div class="content">
+      <div class="title">Upgrades</div>
+      <div id="shop" class="stack"></div>
+      <div class="hr"></div>
+      <div class="title">Generators</div>
+      <div id="generators" class="stack"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: Milestones & Rebirth & Log -->
+  <section class="card right">
+    <header><div class="title">Milestones & Rebirth</div></header>
+    <div class="content stack">
+      <div class="stack" id="milestones"></div>
+      <div class="hr"></div>
+      <div id="rebirth" class="stack"></div>
+      <div class="hr"></div>
+      <div><div class="title">Log</div><div id="log"></div></div>
+    </div>
+  </section>
+</div>
+<script>
+(function(){
+  // DOM guards
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+
+  function init(){
+    // ===== Helpers =====
+    const $=id=>document.getElementById(id);
+    const fmt=n=>{if(!isFinite(n))return'∞';const s=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No"];let i=0;while(Math.abs(n)>=1000&&i<s.length-1){n/=1000;i++}return (Math.floor(n*100)/100).toLocaleString()+" "+s[i]};
+    const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+    const toast=t=>{const el=$("toast");el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1000)};
+    const log=t=>{const el=$("log");const d=document.createElement('div');d.textContent=new Date().toLocaleTimeString()+" · "+t;el.prepend(d)};
+
+    // ===== Data =====
+    const BASE={name:"",coins:0,totalCoins:0,perClick:1,recs:[],upgrades:{},gens:{},rebirths:0,mult:1,cpsBase:0,level:1,xp:0,lastSave:Date.now()};
+
+    const UPGRADES=[
+      // many upgrades, clear level gates
+      {id:'click1', name:'Click Power +1',     base:10,    needLv:1,  type:'click', inc:1},
+      {id:'click2', name:'Click Power +5',     base:60,    needLv:2,  type:'click', inc:5},
+      {id:'click3', name:'Click Power +25',    base:400,   needLv:3,  type:'click', inc:25},
+      {id:'click4', name:'Click Power +100',   base:2600,  needLv:4,  type:'click', inc:100},
+      {id:'click5', name:'Click Power +500',   base:15000, needLv:6,  type:'click', inc:500},
+      {id:'eff1',   name:'Oil Machines (+10% CPS)', base:1200, needLv:2, type:'eff', inc:0.10},
+      {id:'eff2',   name:'Quantum Lube (+25% CPS)', base:6000, needLv:4, type:'eff', inc:0.25},
+      {id:'eff3',   name:'Flux Matrix (+50% CPS)',  base:24000,needLv:6, type:'eff', inc:0.50},
+      {id:'crit',   name:'Critical Clicks (5% for 5x)', base:8000, needLv:5, type:'crit'},
+      {id:'auto',   name:'Auto-Clicker', base:20000, needLv:6, type:'auto'},
+      {id:'macro',  name:'Macro Patterns (+25% click)', base:50000, needLv:7, type:'macro'}
+    ];
+
+    const GENS=[
+      {id:'cursor',  name:'Cursor',      base:15,    growth:1.12, cps:0.2,   needLv:1},
+      {id:'bot',     name:'Bot',         base:90,    growth:1.13, cps:2,     needLv:2},
+      {id:'factory', name:'Factory',     base:900,   growth:1.13, cps:15,    needLv:3},
+      {id:'lab',     name:'Lab',         base:8000,  growth:1.12, cps:85,    needLv:5},
+      {id:'portal',  name:'Portal',      base:75000, growth:1.11, cps:480,   needLv:7},
+      {id:'planet',  name:'Planet Mine', base:1200000,growth:1.12,cps:2400,  needLv:9}
+    ];
+
+    const MILESTONES=[
+      {v:1, text:'Level 1: Cursors unlocked'},
+      {v:2, text:'Level 2: Bots + Upgrades'},
+      {v:4, text:'Level 4: Factories + Eff2'},
+      {v:6, text:'Level 6: Labs + Flux'},
+      {v:7, text:'Level 7: Macro upgrade'},
+      {v:9, text:'Level 9: Planet Mine'},
+      {v:10,text:'Level 10: Rebirth unlocked'}
+    ];
+
+    // ===== State =====
+    let G=JSON.parse(JSON.stringify(BASE));
+    let last=Date.now();
+    let critChance=0; const critMult=5; let auto=false; let macro=false;
+
+    // ===== Build UI =====
+    function buildMilestones(){const root=$("milestones");root.innerHTML='';for(const m of MILESTONES){const d=document.createElement('div');d.className='row';d.innerHTML=`<span style=color:#a8c1df>${m.text}</span><span class=pill>Lv ${m.v}</span>`;root.appendChild(d)}}
+
+    function buildShop(){const root=$("shop");root.innerHTML='';for(const u of UPGRADES){const r=document.createElement('div');r.className='store-item';r.id='u-'+u.id;r.setAttribute('data-lock','Requires Lv '+u.needLv);r.innerHTML=`<div><b>${u.name}</b></div><div style="text-align:right"><div class=midnum id="u-price-${u.id}"></div><button class=btn id="u-buy-${u.id}">Buy</button></div>`;root.appendChild(r);$("u-buy-"+u.id).onclick=()=>buyUpgrade(u)}}
+
+    function genPrice(def,n){return Math.floor(def.base*Math.pow(def.growth,n))}
+    function buildGens(){const root=$("generators");root.innerHTML='';for(const g of GENS){const r=document.createElement('div');r.className='store-item';r.id='g-'+g.id;r.setAttribute('data-lock','Requires Lv '+g.needLv);r.innerHTML=`<div><div style="display:flex;justify-content:space-between"><b>${g.name}</b><span class=pill><b id="g-owned-${g.id}">0</b> owned</span></div><div style=color:#a8c1df>${g.cps} cps each</div></div><div style="text-align:right"><div class=midnum id="g-price-${g.id}"></div><button class=btn id="g-buy-${g.id}">Buy x1</button></div>`;root.appendChild(r);$("g-buy-"+g.id).onclick=()=>buyGenerator(g.id)}}
+
+    function buildRebirth(){const r=$("rebirth");r.innerHTML=`<div class=title>Rebirth</div><div class=row><div class=bar style="flex:1"><i id="rebirthBar"></i></div><button id="btnRebirth" class="btn warn" disabled>Rebirth</button></div><div id="rebirthReq" style="color:#a8c1df">Reach 50,000 coins and Level 10 to rebirth.</div>`;$("btnRebirth").onclick=doRebirth}
+
+    // ===== Mechanics =====
+    function recalc(){
+      // locks and prices
+      for(const u of UPGRADES){const price=u.base*Math.pow(1.18,(G.upgrades[u.id]||0));$("u-price-"+u.id).textContent=fmt(price);const locked=G.level<u.needLv;const el=$("u-"+u.id);el.classList.toggle('lock',locked);$("u-buy-"+u.id).disabled=locked||G.coins<price}
+      for(const g of GENS){const owned=G.gens[g.id]||0;$("g-owned-"+g.id).textContent=owned;const price=genPrice(g,owned);$("g-price-"+g.id).textContent=fmt(price);const locked=G.level<g.needLv;$("g-"+g.id).classList.toggle('lock',locked);$("g-buy-"+g.id).disabled=locked||G.coins<price}
+      // totals
+      let cps=0;for(const g of GENS){cps+=(G.gens[g.id]||0)*g.cps}const eff = 1 + (G.upgrades.eff1||0)*0.10 + (G.upgrades.eff2||0)*0.25 + (G.upgrades.eff3||0)*0.50;G.cpsBase=cps*eff;const totalCps=G.cpsBase*G.mult;$("perSecond").textContent=fmt(totalCps);$("perClick").textContent=fmt(G.perClick*G.mult*(macro?1.25:1));$("statCps").textContent=fmt(totalCps);$("coins").textContent=fmt(G.coins);$("statRebirths").textContent=G.rebirths;$("statMult").textContent='x'+G.mult.toFixed(2);
+      // xp/level
+      const need = Math.floor(40*Math.pow(1.26,G.level-1)); $("statLevel").textContent=G.level; $("statXp").textContent=Math.floor(G.xp)+' / '+need; $("xpBar").style.width=(clamp(G.xp/need,0,1)*100)+'%';
+      // rebirth bar
+      const rneed=rebirthNeed(); $("rebirthBar").style.width=(clamp(G.coins/rneed,0,1)*100)+'%'; $("btnRebirth").disabled = !(G.coins>=rneed && G.level>=10); $("rebirthReq").textContent = `Reach ${fmt(rneed)} coins and Level 10 to rebirth.`;
+    }
+
+    function addXP(x){G.xp+=x; let leveled=false; while(G.xp>=Math.floor(40*Math.pow(1.26,G.level-1))){G.xp-=Math.floor(40*Math.pow(1.26,G.level-1)); G.level++; leveled=true} if(leveled){log(`Level up! Now Lv ${G.level}`); recalc();}}
+
+    function clickOnce(){const crit=Math.random()<critChance; const gain=G.perClick*G.mult*(crit?5:1)*(macro?1.25:1); G.coins+=gain; G.totalCoins+=gain; addXP(1+gain*0.01);}
+
+    function buyUpgrade(u){const lvl = G.upgrades[u.id]||0; const price=u.base*Math.pow(1.18,lvl); if(G.level<u.needLv || G.coins<price) return; G.coins-=price; G.upgrades[u.id]=lvl+1; if(u.type==='click') G.perClick+=u.inc; if(u.type==='eff') {/* handled in recalc */} if(u.type==='crit') critChance=0.05; if(u.type==='auto') auto=true; if(u.type==='macro') macro=true; recalc();}
+
+    function buyGenerator(id){const def=GENS.find(x=>x.id===id); if(G.level<def.needLv) return; const owned=G.gens[id]||0; const price=genPrice(def,owned); if(G.coins<price) return; G.coins-=price; G.gens[id]=owned+1; addXP(2); recalc();}
+
+    function rebirthNeed(){return Math.floor(50000*Math.pow(8,(G.rebirths))) }
+    function doRebirth(){ if(!(G.level>=10 && G.coins>=rebirthNeed())) return; const multGain=1.6; G.rebirths+=1; G.mult=parseFloat((G.mult*multGain).toFixed(2)); G.coins=0; G.totalCoins=0; G.perClick=1+Math.min(1,(G.perClick>1?1:0)); G.gens={}; G.upgrades={}; G.level=1; G.xp=0; critChance=0; auto=false; macro=false; log(`Rebirthed. Mult now x${G.mult}`); recalc();}
+
+    function tick(dt){const gain=G.cpsBase*G.mult*dt; G.coins+=gain; G.totalCoins+=gain; addXP(gain*0.01); if(auto){ clickOnce(); }}
+
+    // ===== Persistence =====
+    function save(){G.lastSave=Date.now(); localStorage.setItem('addictive-clicker-standalone', JSON.stringify(G)); toast('Saved');}
+    function load(){const raw=localStorage.getItem('addictive-clicker-standalone'); if(!raw){G=JSON.parse(JSON.stringify(BASE)); recalc(); return;} try{G=Object.assign({},BASE,JSON.parse(raw));}catch{G=JSON.parse(JSON.stringify(BASE));}
+      // offline progress, cap 6h
+      const dt=Math.max(0,Math.min(6*3600*1000,Date.now()-(G.lastSave||Date.now())))/1000; if(dt>1){const gain=(G.cpsBase||0)*(G.mult||1)*dt; G.coins+=gain; G.totalCoins+=gain; addXP(gain*0.01); log(`Offline: +${fmt(gain)} over ${Math.floor(dt)}s`);} recalc();}
+
+    // ===== Events & wiring =====
+    $("clickBtn").onclick=(e)=>{clickOnce();recalc()};
+    $("btnSetName").onclick=()=>{G.name=$("playerName").value.trim(); const cheat=(G.name.toLowerCase()==='idontcheat'); $("cheatPanel").style.display=cheat?'grid':'none'; if(cheat) log('Cheat mode enabled'); save()};
+    $("cheatCoins").onclick=()=>{G.coins+=1e6; G.totalCoins+=1e6; recalc()};
+    $("cheatUnlock").onclick=()=>{for(const u of UPGRADES){G.upgrades[u.id]=10} G.perClick+=1000; recalc()};
+    $("cheatGens").onclick=()=>{for(const g of GENS){G.gens[g.id]=(G.gens[g.id]||0)+100} recalc()};
+
+    buildMilestones(); buildShop(); buildGens(); buildRebirth(); load();
+
+    // main loop
+    let lastT=performance.now(); function loop(t){const dt=Math.min(0.25,(t-lastT)/1000); lastT=t; tick(dt); recalc(); requestAnimationFrame(loop);} requestAnimationFrame(loop);
+
+    // autosave
+    setInterval(save,10000);
+
+    // ===== Self-tests (added) =====
+    function assert(cond,msg){ if(!cond){ console.error('TEST FAIL:',msg); log('TEST FAIL: '+msg);} else { console.log('TEST PASS:',msg); } }
+    // DOM exists
+    ['coins','perSecond','clickBtn','shop','generators','rebirth','statLevel'].forEach(id=>assert(!!$(id),`#${id} exists`));
+    // Click adds coins
+    const before=G.coins; clickOnce(); assert(G.coins>before,'click increases coins');
+    // Upgrade pricing finite
+    const u0=UPGRADES[0]; const p0=u0.base*Math.pow(1.18,(G.upgrades[u0.id]||0)); assert(isFinite(p0)&&p0>0,'upgrade price finite');
+    // Gen price finite
+    const g0=GENS[0]; let sum=0; for(let i=0;i<5;i++) sum+=Math.floor(g0.base*Math.pow(g0.growth,i)); assert(isFinite(sum)&&sum>0,'generator price finite');
+  }
+})();
+</script>
+</body>
+</html>
